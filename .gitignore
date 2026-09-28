@@ -1,0 +1,17 @@
+# 编译产物
+*.o
+*.elf
+*.iso
+*.bin
+*.map
+*.img
+
+# 编辑器
+.vscode/
+*.swp
+*~
+*.bak
+
+# 系统文件
+.DS_Store
+Thumbs.db
