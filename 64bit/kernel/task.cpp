@@ -1,5 +1,6 @@
 #include "task.h"
 #include "vga.h"
+#include "critical.h"
 
 #define MAX_TASKS  8
 #define STACK_SIZE 16384
@@ -9,6 +10,7 @@ struct Task {
     uint64_t stack;
     void   (*entry)();
     int      id;
+    const char* name;
 };
 
 // 静态分配任务栈，避免堆的复杂性
@@ -57,12 +59,13 @@ namespace task {
         g_sched_lock = 0;
     }
 
-    int create(void (*entry)()) {
+    int create(void (*entry)(), const char* name) {
         if (!entry || g_multitasking || g_task_count >= MAX_TASKS) return -1;
         int id = g_task_count++;
         Task* t = &g_tasks[id];
         t->entry = entry;
         t->id    = id;
+        t->name  = name ? name : "task";
         t->stack = (uint64_t)task_stacks[id];
         setup_stack(t);
         return id;
@@ -79,7 +82,21 @@ namespace task {
     void lock()   { g_sched_lock++; }
     void unlock() { if (g_sched_lock > 0) g_sched_lock--; }
 
-    uint64_t switches() { return g_switch_count; }
+    uint64_t switches() { InterruptGuard guard; return g_switch_count; }
+
+    void print_stats() {
+        int current, count;
+        uint64_t switches;
+        { InterruptGuard guard; current = g_current; count = g_task_count; switches = g_switch_count; }
+        vga::print("Tasks: "); vga::print_dec(count);
+        vga::print(", switches="); vga::print_dec(switches);
+        vga::putchar('\n');
+        for (int i = 0; i < count; ++i) {
+            vga::print("  "); vga::print_dec(i); vga::print("  ");
+            vga::print(g_tasks[i].name);
+            vga::print(i == current ? "  running\n" : "  ready\n");
+        }
+    }
 }
 
 extern "C" uint64_t task_switch_from_irq(uint64_t current_rsp) {

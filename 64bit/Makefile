@@ -47,8 +47,14 @@ run: ivseznayfews.iso
 clean:
 	rm -f $(OBJS:.o=.d) $(OBJS) ivseznayfews.elf ivseznayfews.iso iso/boot/ivseznayfews.elf
 
-.PHONY: all run clean test
-test: ivseznayfews.iso
+.PHONY: all run clean test test-host
+test-host:
+	@tmp_binary=$$(mktemp /tmp/os-allocators.XXXXXX); \
+	trap 'rm -f "$$tmp_binary"' EXIT; \
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -Werror -DOS_HOST_TEST -fno-pie -no-pie -Ikernel \
+	    tests/allocators.cpp kernel/pmm.cpp kernel/heap.cpp -o "$$tmp_binary" && "$$tmp_binary"
+
+test: test-host ivseznayfews.iso
 	python3 tests/smoke.py
 
 -include $(OBJS:.o=.d)

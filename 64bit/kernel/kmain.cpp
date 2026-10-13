@@ -15,7 +15,10 @@
 static void shell_task() {
     shell::init();
     serial::print("[READY] Shell initialized\n");
-    while (1) asm volatile("hlt");
+    while (1) {
+        keyboard::poll();
+        asm volatile("hlt");
+    }
 }
 
 static void monitor_task() {
@@ -36,7 +39,7 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     serial::init();
 
     vga::print("=================================\n");
-    vga::print("    Ivseznayfews 64-bit v1.7\n");
+    vga::print("    Ivseznayfews 64-bit v1.8\n");
     vga::print("=================================\n\n");
 
     if (magic != 0x2BADB002 || !mb_info ||
@@ -52,9 +55,9 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     keyboard::init();
     keyboard::set_callback(shell::input);
 
-    {
-        MultibootInfo* mbi = (MultibootInfo*)(uint64_t)mb_info;
-        pmm::init(mbi->mmap_addr, mbi->mmap_length);
+    if (!pmm::init((MultibootInfo*)(uint64_t)mb_info)) {
+        serial::print("[BOOT ERROR] Invalid or empty memory map\n");
+        while (1) asm volatile("cli; hlt");
     }
     heap::init();
     pit::init(100);
@@ -62,8 +65,8 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     vga::print("[OK] Core + PIT ready\n");
 
     task::init();
-    task::create(shell_task);
-    task::create(monitor_task);
+    task::create(shell_task, "shell");
+    task::create(monitor_task, "monitor");
     vga::print("[OK] 2 tasks created\n");
 
     vga::print("Starting shell and scheduler monitor...\n\n");

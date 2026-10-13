@@ -83,6 +83,13 @@ with tempfile.TemporaryDirectory(prefix='os-smoke-') as directory:
         wait_for(lambda: 'show this' in screen())
         type_keys(['e', 'c', 'h', 'o', 'spc', 'o', 'k', 'ret'])
         wait_for(lambda: 'ok' in [screen()[i:i+80].strip() for i in range(0, 2000, 80)])
+        for command, expected in [('mem', 'PMM: managed='), ('tasks', 'monitor  ready'),
+                                  ('uptime', 'Uptime:'), ('memtest', 'memtest: PASS')]:
+            type_keys(list(command) + ['ret'])
+            wait_for(lambda: expected in screen())
+        # Editing: erase an extra character and execute the corrected command.
+        type_keys(['e', 'c', 'h', 'o', 'spc', 'o', 'x', 'backspace', 'k', 'ret'])
+        wait_for(lambda: 'ok' in [screen()[i:i+80].strip() for i in range(0, 2000, 80)])
         duration = int(os.environ.get('SMOKE_SECONDS', '65'))
         end = time.monotonic() + duration
         while time.monotonic() < end:
@@ -96,7 +103,7 @@ with tempfile.TemporaryDirectory(prefix='os-smoke-') as directory:
         assert all(b > a for a, b in zip(counts, counts[1:])), counts
         type_keys(['s', 'h', 'u', 't', 'd', 'o', 'w', 'n', 'ret'])
         assert process.wait(timeout=10) == 0
-        print(f'PASS: Shell help/echo/shutdown; {counts[-1]} switches; {duration}s stability')
+        print(f'PASS: Shell help/echo/edit/mem/tasks/uptime/memtest/shutdown; {counts[-1]} switches; {duration}s stability')
     finally:
         if process.poll() is None:
             process.terminate()

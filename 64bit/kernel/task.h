@@ -3,9 +3,10 @@
 
 namespace task {
     void init();
-    int  create(void (*entry)());
+    int  create(void (*entry)(), const char* name = "task");
     void start();
     uint64_t switches();
+    void print_stats();
 
     // 抢占锁：lock() 后调度器不切换，unlock() 后恢复
     void lock();

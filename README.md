@@ -16,9 +16,9 @@
 - 64 位长模式（自建页表，GRUB multiboot 直入）
 - GDT / IDT / PIC 中断系统
 - 键盘驱动、PIT 定时器、串口输出
-- 交互式命令行 Shell
-- 物理内存管理器（Bitmap 4KB 页框分配）
-- 内核堆（kmalloc / kfree，含块合并）
+- 交互式命令行 Shell（新增 mem / tasks / uptime / memtest）
+- 物理内存管理器（4KB 页框、连续页分配、保留页保护）
+- 内核堆（16 字节对齐、kmalloc / kfree，仅合并地址连续的空闲块）
 - 多任务（轮转调度，通过 iretq 切换上下文）
 
 ### 修复与验证
@@ -28,7 +28,9 @@
 内核仅使用通用寄存器，当前不支持任务中的浮点/SIMD 状态切换。
 
 自动验证：`cd 64bit && make test`（需要 Python 3）。测试实际启动 QEMU，
-检查 PS/2 键盘 help/echo/shutdown 命令及 65 秒持续调度。
+检查 PS/2 键盘命令、输入编辑、内存自检及 65 秒持续调度。
+`make test-host` 可单独验证分配器。v1.8 将命令执行移到 Shell 任务，
+键盘中断只将输入加入队列，避免命令执行阻塞定时器。
 
 ### 编译
 
