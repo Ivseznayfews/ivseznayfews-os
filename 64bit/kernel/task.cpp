@@ -21,14 +21,26 @@ static uint64_t g_switch_count = 0;
 static volatile int g_multitasking = 0;
 static volatile int g_sched_lock = 0;
 
+static void task_entry() {
+    g_tasks[g_current].entry();
+    // A returning kernel task stays idle rather than returning into garbage.
+    while (1) asm volatile("hlt");
+}
+
 static void setup_stack(Task* t) {
     uint64_t top = t->stack + STACK_SIZE;
     top &= ~0xFULL;
     uint64_t* sp = (uint64_t*)top;
 
+    // Long-mode IRETQ always restores SS:RSP, even within ring 0.
+    // Reserve a dummy return address for the SysV function-entry alignment.
+    *--sp = 0;
+    uint64_t initial_rsp = (uint64_t)sp;
+    *--sp = 0x10;
+    *--sp = initial_rsp;
     *--sp = 0x202;
     *--sp = 0x08;
-    *--sp = (uint64_t)t->entry;
+    *--sp = (uint64_t)task_entry;
     *--sp = 0;
     *--sp = 0;
     for (int i = 0; i < 15; i++) *--sp = 0;
@@ -46,7 +58,7 @@ namespace task {
     }
 
     int create(void (*entry)()) {
-        if (g_task_count >= MAX_TASKS) return -1;
+        if (!entry || g_multitasking || g_task_count >= MAX_TASKS) return -1;
         int id = g_task_count++;
         Task* t = &g_tasks[id];
         t->entry = entry;
@@ -58,6 +70,7 @@ namespace task {
 
     void start() {
         if (g_task_count == 0) return;
+        asm volatile("cli" ::: "memory");
         g_current = 0;
         g_multitasking = 1;
         task_start(g_tasks[0].rsp);

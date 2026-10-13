@@ -47,11 +47,11 @@ ISR_ERR   13
 ISR_ERR   14
 ISR_NOERR 15
 ISR_NOERR 16
-ISR_NOERR 17
+ISR_ERR   17
 ISR_NOERR 18
 ISR_NOERR 19
 ISR_NOERR 20
-ISR_NOERR 21
+ISR_ERR   21
 ISR_NOERR 22
 ISR_NOERR 23
 ISR_NOERR 24
@@ -59,8 +59,8 @@ ISR_NOERR 25
 ISR_NOERR 26
 ISR_NOERR 27
 ISR_NOERR 28
-ISR_NOERR 29
-ISR_NOERR 30
+ISR_ERR   29
+ISR_ERR   30
 ISR_NOERR 31
 
 IRQ 0,  32
@@ -96,8 +96,12 @@ isr_common:
     push r13
     push r14
     push r15
-    mov rdi, rsp
+    cld
+    mov r12, rsp
+    mov rdi, r12
+    and rsp, -16
     call isr_dispatch
+    mov rsp, r12
     pop r15
     pop r14
     pop r13
@@ -133,18 +137,22 @@ irq_common:
     push r14
     push r15
 
-    mov rdi, rsp
+    cld
+    mov r12, rsp
+    mov rdi, r12
+    and rsp, -16
     call irq_dispatch
 
-    mov eax, [rsp + 120]
+    mov eax, [r12 + 120]
     cmp eax, 32
     jne .no_switch
 
-    mov rdi, rsp
+    mov rdi, r12
     call task_switch_from_irq
-    mov rsp, rax
+    mov r12, rax
 
 .no_switch:
+    mov rsp, r12
     pop r15
     pop r14
     pop r13
@@ -162,3 +170,5 @@ irq_common:
     pop rax
     add rsp, 16
     iretq
+
+section .note.GNU-stack noalloc noexec nowrite progbits

@@ -35,7 +35,7 @@ namespace gdt {
 
         set_entry(0, 0, 0,          0,    0);
         set_entry(1, 0, 0xFFFFFFFF, 0x9A, 0xAF);
-        set_entry(2, 0, 0xFFFFFFFF, 0x92, 0xAF);
+        set_entry(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
 
         gdt_flush((uint64_t)&g_gdtp);
     }

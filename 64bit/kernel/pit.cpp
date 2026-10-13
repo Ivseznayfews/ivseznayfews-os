@@ -11,7 +11,7 @@ static void pit_handler(Registers*) {
 namespace pit {
     void init(uint32_t freq_hz) {
         // PIT 输入时钟 1193182 Hz
-        uint32_t divisor = 1193182 / freq_hz;
+        uint32_t divisor = 1193182 / (freq_hz ? freq_hz : 100);
         if (divisor < 1)     divisor = 1;
         if (divisor > 65535) divisor = 65535;
 

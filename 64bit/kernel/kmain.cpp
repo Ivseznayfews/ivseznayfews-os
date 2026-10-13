@@ -12,17 +12,22 @@
 #include "pit.h"
 #include "task.h"
 
-static void task_a() {
-    while (1) {
-        vga::putchar('A');
-        for (volatile int i = 0; i < 500000; i++);
-    }
+static void shell_task() {
+    shell::init();
+    serial::print("[READY] Shell initialized\n");
+    while (1) asm volatile("hlt");
 }
 
-static void task_b() {
+static void monitor_task() {
+    uint64_t last = 0;
     while (1) {
-        vga::putchar('B');
-        for (volatile int i = 0; i < 500000; i++);
+        if (pit::ticks() - last >= 100) {
+            last = pit::ticks();
+            serial::print("[SCHED] switches=");
+            serial::print_hex(task::switches());
+            serial::print("\n");
+        }
+        asm volatile("hlt");
     }
 }
 
@@ -34,6 +39,11 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     vga::print("    Ivseznayfews 64-bit v1.7\n");
     vga::print("=================================\n\n");
 
+    if (magic != 0x2BADB002 || !mb_info ||
+        !(((MultibootInfo*)(uint64_t)mb_info)->flags & (1u << 6))) {
+        serial::print("[BOOT ERROR] Missing Multiboot memory map\n");
+        while (1) asm volatile("cli; hlt");
+    }
     multiboot::set_info(mb_info);
     gdt::init();
     idt::init();
@@ -52,15 +62,11 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     vga::print("[OK] Core + PIT ready\n");
 
     task::init();
-    task::create(task_a);
-    task::create(task_b);
+    task::create(shell_task);
+    task::create(monitor_task);
     vga::print("[OK] 2 tasks created\n");
 
-    asm volatile("sti");
-    vga::print("[OK] Interrupts enabled\n\n");
-
-    vga::print("Starting multitasking (slow pace)...\n");
-    vga::print("Expect ABABAB... one char per second:\n\n");
+    vga::print("Starting shell and scheduler monitor...\n\n");
 
     task::start();
     while (1) asm volatile("hlt");

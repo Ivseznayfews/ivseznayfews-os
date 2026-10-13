@@ -21,10 +21,14 @@
 - 内核堆（kmalloc / kfree，含块合并）
 - 多任务（轮转调度，通过 iretq 切换上下文）
 
-### 已知问题
+### 修复与验证
 
-多任务不稳定。切换几秒后 iretq 返回非法 CS 值，触发通用保护异常。
-任务栈疑似被破坏。计划用独立的 TSS 中断栈修复。
+已修复新任务初始中断帧缺少 RSP/SS、中断调用 C++ 栈对齐和异常错误码布局问题。
+默认启动交互式 Shell 与后台调度监控任务，串口每秒输出切换计数。
+内核仅使用通用寄存器，当前不支持任务中的浮点/SIMD 状态切换。
+
+自动验证：`cd 64bit && make test`（需要 Python 3）。测试实际启动 QEMU，
+检查 PS/2 键盘 help/echo/shutdown 命令及 65 秒持续调度。
 
 ### 编译
 
@@ -32,7 +36,7 @@
     make
     make run
 
-依赖：g++ (x86_64, GCC 13+)、nasm、ld、grub-mkrescue、xorriso、qemu-system-x86_64。
+依赖：g++ (x86_64, GCC 13+)、nasm、ld、grub-mkrescue、xorriso、mtools、qemu-system-x86_64。
 
 ---
 

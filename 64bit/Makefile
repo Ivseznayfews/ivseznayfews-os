@@ -1,7 +1,7 @@
 CXX      := g++
 LD       := ld
 AS       := nasm
-CXXFLAGS := -m64 -O0 -fno-omit-frame-pointer -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -nostdlib -Wall -Wextra -Ikernel -mno-red-zone -fno-pic -fno-pie
+CXXFLAGS := -m64 -O0 -fno-omit-frame-pointer -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -nostdlib -Wall -Wextra -Ikernel -mno-red-zone -fno-pic -fno-pie -mgeneral-regs-only -MMD -MP
 LDFLAGS  := -m elf_x86_64 -T linker.ld
 
 OBJS := boot/boot.o \
@@ -45,4 +45,10 @@ run: ivseznayfews.iso
 	qemu-system-x86_64 -cdrom ivseznayfews.iso -serial stdio
 
 clean:
-	rm -f $(OBJS) ivseznayfews.elf ivseznayfews.iso iso/boot/ivseznayfews.elf
+	rm -f $(OBJS:.o=.d) $(OBJS) ivseznayfews.elf ivseznayfews.iso iso/boot/ivseznayfews.elf
+
+.PHONY: all run clean test
+test: ivseznayfews.iso
+	python3 tests/smoke.py
+
+-include $(OBJS:.o=.d)
