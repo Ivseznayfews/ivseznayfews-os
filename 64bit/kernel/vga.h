@@ -3,6 +3,8 @@
 #include <stddef.h>
 
 namespace vga {
+    size_t cursor_row();
+    size_t cursor_col();
     void clear();
     void putchar(char c);
     void print(const char* s);

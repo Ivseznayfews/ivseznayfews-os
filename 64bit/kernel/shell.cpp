@@ -6,6 +6,10 @@
 #include "pit.h"
 #include "task.h"
 #include "keyboard.h"
+#include "storage.h"
+#include "user.h"
+#include "smp.h"
+#include "net.h"
 
 static char line[256];
 static size_t line_len = 0;
@@ -25,7 +29,7 @@ static void clear_line() {
 }
 
 static void cmd_help() {
-    vga::print("Commands:\n");
+    vga::print("Commands: net, ping IP, udp/tcp IP PORT TEXT\n");
     vga::print("  help       - show this\n");
     vga::print("  clear      - clear screen\n");
     vga::print("  echo X     - print X\n");
@@ -33,6 +37,10 @@ static void cmd_help() {
     vga::print("  mem        - physical pages and heap usage\n");
     vga::print("  tasks      - task names and scheduler switches\n");
     vga::print("  uptime     - elapsed seconds and timer ticks\n");
+    vga::print("  ls / cat X - inspect the FAT32 disk\n");
+    vga::print("  run X      - load an ELF into Ring 3\n");
+    vga::print("  cpus / smptest - multicore worker status and test\n");
+    vga::print("  usertest   - syscall and isolation checks\n");
     vga::print("  memtest    - allocator integrity check\n");
     vga::print("  reboot     - reboot the machine\n");
     vga::print("  shutdown   - power off (exits QEMU)\n");
@@ -40,7 +48,7 @@ static void cmd_help() {
 }
 
 static void cmd_about() {
-    vga::print("Ivseznayfews v1.8 (64-bit)\n");
+    vga::print("Ivseznayfews v2.0 (64-bit)\n");
     vga::print("An experimental operating system in C++\n");
     vga::print("Boot: GRUB/Multiboot   Arch: x86_64\n");
 }
@@ -83,6 +91,19 @@ static void execute() {
     else if (str_eq(line, "about")) cmd_about();
     else if (str_eq(line, "mem")) { pmm::print_stats(); heap::stats(); }
     else if (str_eq(line, "tasks")) task::print_stats();
+    else if (str_eq(line, "ls")) vfs::list();
+    else if (line[0]=='c' && line[1]=='a' && line[2]=='t' && line[3]==' ') vfs::cat(line+4);
+    else if (line[0]=='r' && line[1]=='u' && line[2]=='n' && line[3]==' ') {
+        int status=user::run(line+4);
+        vga::print("Process exit: ");if(status<0)vga::putchar('-');vga::print_dec(status<0?-int64_t(status):status);vga::putchar('\n');
+    }
+    else if (str_eq(line, "net")) net::stats();
+    else if (line[0]=='p' && line[1]=='i' && line[2]=='n' && line[3]=='g' && line[4]==' ') net::ping(line+5);
+    else if (line[0]=='u' && line[1]=='d' && line[2]=='p' && line[3]==' ') net::exchange(line+4,false);
+    else if (line[0]=='t' && line[1]=='c' && line[2]=='p' && line[3]==' ') net::exchange(line+4,true);
+    else if (str_eq(line, "cpus")) smp::stats();
+    else if (str_eq(line, "smptest")) smp::test();
+    else if (str_eq(line, "usertest")) user::test();
     else if (str_eq(line, "memtest")) cmd_memtest();
     else if (str_eq(line, "uptime")) {
         uint64_t ticks = pit::ticks();
@@ -127,7 +148,7 @@ static void execute() {
 
 namespace shell {
     void init() {
-        vga::print("Ivseznayfews Shell v1.8 (64-bit)\n");
+        vga::print("Ivseznayfews Shell v2.0 (64-bit)\n");
         vga::print("Type 'help' for commands.\n\n");
         print_prompt();
     }

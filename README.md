@@ -16,10 +16,28 @@
 - 64 位长模式（自建页表，GRUB multiboot 直入）
 - GDT / IDT / PIC 中断系统
 - 键盘驱动、PIT 定时器、串口输出
-- 交互式命令行 Shell（新增 mem / tasks / uptime / memtest）
+- 深色图形桌面：侧栏、终端、实时系统状态卡片、鼠标与 F1–F4 导航
+- 交互式命令行 Shell（mem / tasks / uptime / memtest）
 - 物理内存管理器（4KB 页框、连续页分配、保留页保护）
 - 内核堆（16 字节对齐、kmalloc / kfree，仅合并地址连续的空闲块）
 - 多任务（轮转调度，通过 iretq 切换上下文）
+
+### 系统扩展 v2.0
+
+默认进入 1024×768 深色桌面，支持 800×600 和文本恢复入口。
+鼠标点击左侧 Terminal / System / Help / Files，或按 F1 / F2 / F3 / F4 切换页面；
+Tab 轮换页面，Esc 返回终端。终端支持拖动、最小化和 F1 恢复。
+
+- 独立用户页表、Ring 3 ELF 加载、SYSCALL、错误隔离与超时回收。
+- ATA PIO、只读 VFS/FAT32：`ls` / `cat readme.txt` / `run hello.elf` / `usertest`。
+- E1000、ARP/IPv4/ICMP、UDP 和最小 TCP 诊断客户端：`net` / `ping 10.0.2.2`。
+- xAPIC 多核启动、Spinlock 和 AP 工作队列：`cpus` / `smptest`。
+
+实现范围、调用 ABI、限制和复现方法见 [64bit/SYSTEM-V2.md](64bit/SYSTEM-V2.md)。
+Shell 仍在内核态；AP 尚不运行抢占式用户任务；FAT32 只读，TCP 尚非完整协议栈。
+
+本机直接运行 `./64bit/run-vm.sh` 可打开 QEMU 测试窗口。
+使用说明见 [64bit/VM-TEST.md](64bit/VM-TEST.md)。
 
 ### 修复与验证
 

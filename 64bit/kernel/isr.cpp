@@ -3,6 +3,8 @@
 #include "serial.h"
 #include "vga.h"
 #include "io.h"
+#include "desktop.h"
+#include "user.h"
 
 static const char* exception_names[] = {
     "Divide-by-zero", "Debug", "NMI", "Breakpoint",
@@ -16,6 +18,7 @@ static const char* exception_names[] = {
 };
 
 static void exception_handler(Registers* r) {
+    user::fault(r);
     vga::print("\n\n*** EXCEPTION: ");
     vga::print(exception_names[r->int_no]);
     vga::print("\n int_no=");
@@ -50,6 +53,8 @@ static void exception_handler(Registers* r) {
     serial::print_hex(r->rsp);
     serial::print("\n");
 
+    desktop::show_terminal();
+    desktop::render();
     while (1) asm volatile("hlt");
 }
 

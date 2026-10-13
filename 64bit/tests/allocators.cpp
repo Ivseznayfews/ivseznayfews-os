@@ -74,6 +74,15 @@ static void physical_tests() {
     assert(pmm::total_pages() == LENGTH / 4096 - 5);
     pmm::free_page((void*)(BASE + 6 * 4096));
     assert(pmm::used_pages() == 0);
+    setup();
+    info->flags |= 1u << 12;
+    info->framebuffer_addr = BASE + 5 * 4096;
+    info->framebuffer_pitch = 4096;
+    info->framebuffer_height = 2;
+    assert(pmm::init(info));
+    assert(pmm::total_pages() == LENGTH / 4096 - 5);
+    pmm::free_page((void*)info->framebuffer_addr);
+    assert(pmm::used_pages() == 0);
     // Malformed record lengths fail closed; unavailable bytes never become free.
     entries[0].size = UINT32_MAX;
     assert(!pmm::init(info));

@@ -1,6 +1,8 @@
 #include "pmm.h"
 #include "vga.h"
 #include "critical.h"
+#include "spinlock.h"
+static SpinLock allocator_lock;
 
 static constexpr size_t MAX_PAGES = pmm::MAPPED_BYTES / pmm::PAGE_SIZE;
 static uint8_t unavailable[MAX_PAGES / 8];
@@ -31,7 +33,7 @@ static bool mapped(uint64_t address, uint64_t length) {
 
 namespace pmm {
     bool init(const MultibootInfo* info) {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         g_total = g_used = 0;
         for (size_t i = 0; i < sizeof(unavailable); ++i) {
             unavailable[i] = 0xff;
@@ -61,6 +63,10 @@ namespace pmm {
         mark_region(0, 0x100000, true);
         mark_region((uint64_t)info, sizeof(*info), true);
         mark_region(info->mmap_addr, info->mmap_length, true);
+        if (info->flags & (1u << 12)) {
+            mark_region(info->framebuffer_addr,
+                        uint64_t(info->framebuffer_pitch) * info->framebuffer_height, true);
+        }
         if (info->flags & (1u << 3)) {
             struct Module { uint32_t start, end, string, reserved; };
             uint64_t bytes = uint64_t(info->mods_count) * sizeof(Module);
@@ -83,7 +89,7 @@ namespace pmm {
     }
 
     void* alloc_pages(size_t count) {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         if (!count || count > MAX_PAGES || count > g_total - g_used) return nullptr;
         size_t run = 0;
         for (size_t i = 0; i < MAX_PAGES; ++i) {
@@ -102,7 +108,7 @@ namespace pmm {
     void* alloc_page() { return alloc_pages(1); }
 
     void free_pages(void* p, size_t count) {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         uint64_t address = (uint64_t)p;
         size_t first = address / PAGE_SIZE;
         if (!p || address % PAGE_SIZE || !count || first >= MAX_PAGES || count > MAX_PAGES - first) return;
@@ -114,11 +120,11 @@ namespace pmm {
         g_used -= count;
     }
     void free_page(void* p) { free_pages(p, 1); }
-    uint64_t total_pages() { InterruptGuard guard; return g_total; }
-    uint64_t used_pages() { InterruptGuard guard; return g_used; }
+    uint64_t total_pages() { InterruptGuard guard; SpinGuard shared(allocator_lock); return g_total; }
+    uint64_t used_pages() { InterruptGuard guard; SpinGuard shared(allocator_lock); return g_used; }
     void print_stats() {
         uint64_t total, used;
-        { InterruptGuard guard; total = g_total; used = g_used; }
+        { InterruptGuard guard; SpinGuard shared(allocator_lock); total = g_total; used = g_used; }
         vga::print("PMM: managed="); vga::print_dec(total);
         vga::print(" pages, allocated="); vga::print_dec(used);
         vga::print(", free="); vga::print_dec(total - used);

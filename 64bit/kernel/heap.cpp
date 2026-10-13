@@ -2,6 +2,8 @@
 #include "pmm.h"
 #include "vga.h"
 #include "critical.h"
+#include "spinlock.h"
+static SpinLock allocator_lock;
 
 struct alignas(16) Block {
     size_t size;
@@ -61,14 +63,14 @@ static void split(Block* b, size_t size) {
 }
 namespace heap {
     void init() {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         // Initialization happens once, after PMM setup.
         g_head = nullptr;
         g_total_alloc = 0;
         extend_heap(4096 - HEADER);
     }
     void* kmalloc(size_t size) {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         if (!size || size > SIZE_MAX - 15) return nullptr;
         size = (size + 15) & ~size_t(15);
         if (size > pmm::MAPPED_BYTES - HEADER - 4095) return nullptr;
@@ -82,7 +84,7 @@ namespace heap {
         return (uint8_t*)b + HEADER;
     }
     void kfree(void* p) {
-        InterruptGuard guard;
+        InterruptGuard guard; SpinGuard shared(allocator_lock);
         if (!p) return;
         // Validate against live payloads before accessing a header.
         for (Block* b = g_head; b; b = b->next) {
@@ -94,11 +96,11 @@ namespace heap {
             return;
         }
     }
-    size_t allocated_bytes() { InterruptGuard guard; return g_total_alloc; }
+    size_t allocated_bytes() { InterruptGuard guard; SpinGuard shared(allocator_lock); return g_total_alloc; }
     void stats() {
         size_t total = 0, free_bytes = 0, blocks = 0, used = 0;
         {
-            InterruptGuard guard;
+            InterruptGuard guard; SpinGuard shared(allocator_lock);
             for (Block* b = g_head; b; b = b->next) {
                 total += b->size + HEADER;
                 if (b->free) free_bytes += b->size;

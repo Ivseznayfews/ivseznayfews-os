@@ -1,11 +1,13 @@
 #include "pit.h"
 #include "io.h"
 #include "idt.h"
+#include "user.h"
 
 static volatile uint64_t g_ticks = 0;
 
-static void pit_handler(Registers*) {
+static void pit_handler(Registers* r) {
     g_ticks++;
+    user::tick(r,g_ticks);
 }
 
 namespace pit {

@@ -1,5 +1,5 @@
 MB_MAGIC    equ 0x1BADB002
-MB_FLAGS    equ 0x0
+MB_FLAGS    equ 0x7
 MB_CHECKSUM equ -(MB_MAGIC + MB_FLAGS)
 
 section .multiboot
@@ -7,12 +7,15 @@ align 4
     dd MB_MAGIC
     dd MB_FLAGS
     dd MB_CHECKSUM
+    ; Address fields are unused for ELF but retain their specified offsets.
+    dd 0, 0, 0, 0, 0
+    dd 0, 1024, 768, 32       ; linear graphics mode
 
 section .bss
 align 4096
 pml4:           resb 4096
 pdpt:           resb 4096
-pd:             resb 4096
+pd:             resb 16384
 align 16
 stack_bottom:
     resb 16384
@@ -62,22 +65,33 @@ _start:
     mov dword [pml4], eax
     mov dword [pml4 + 4], 0
 
-    ; PDPT[0] -> PD
-    mov eax, pd
+    ; Four page directories identity-map 4 GB, including PCI framebuffer MMIO.
+    xor ecx, ecx
+.map_pdpt:
+    mov eax, ecx
+    shl eax, 12
+    add eax, pd
     or eax, 0x03
-    mov dword [pdpt], eax
-    mov dword [pdpt + 4], 0
+    mov [pdpt + ecx*8], eax
+    mov dword [pdpt + ecx*8 + 4], 0
+    inc ecx
+    cmp ecx, 4
+    jne .map_pdpt
 
-    ; PD: 512 个 2MB 大页，映射前 1GB
+    ; PMM still allocates only below 1 GB; upper mappings are uncached MMIO.
     mov ecx, 0
 .map_pd:
     mov eax, 0x200000
     mul ecx
     or eax, 0x83
+    cmp ecx, 512
+    jb .store_pde
+    or eax, 0x18
+.store_pde:
     mov dword [pd + ecx*8], eax
     mov dword [pd + ecx*8 + 4], 0
     inc ecx
-    cmp ecx, 512
+    cmp ecx, 2048
     jne .map_pd
 
     mov eax, pml4
@@ -89,11 +103,11 @@ _start:
 
     mov ecx, 0xC0000080
     rdmsr
-    or eax, (1 << 8)
+    or eax, (1 << 8) | (1 << 11)
     wrmsr
 
     mov eax, cr0
-    or eax, (1 << 31)
+    or eax, (1 << 31) | (1 << 16)
     mov cr0, eax
 
     lgdt [gdt64_pointer]

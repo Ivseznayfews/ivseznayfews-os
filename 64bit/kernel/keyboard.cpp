@@ -34,6 +34,7 @@ static const char kbd_upper[128] = {
 };
 
 static void keyboard_handler(Registers*) {
+    if (inb(0x64) & 0x20) return;
     uint8_t sc = inb(0x60);
 
     if (sc == 0xE0 || sc == 0xE1) { g_extended = true; return; }
@@ -45,7 +46,8 @@ static void keyboard_handler(Registers*) {
 
     if (sc & 0x80) return;
 
-    char c = g_shift ? kbd_upper[sc] : kbd_lower[sc];
+    char c = (sc >= 0x3b && sc <= 0x3e) ? char(0x81+sc-0x3b) :
+             (g_shift ? kbd_upper[sc] : kbd_lower[sc]);
     if (c) {
         uint16_t next = (write_pos + 1) % sizeof(queue);
         if (next == read_pos) { ++dropped; return; }

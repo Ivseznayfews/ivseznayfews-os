@@ -1,10 +1,12 @@
 #include "vga.h"
 #include "io.h"
 #include "task.h"
+#include "desktop.h"
 
 static const size_t VGA_WIDTH  = 80;
 static const size_t VGA_HEIGHT = 25;
-static uint16_t* const VGA_MEM = (uint16_t*)0xB8000;
+extern "C" { uint16_t kernel_console[80*25]; }
+static uint16_t* const VGA_MEM = kernel_console;
 
 static size_t row = 0, col = 0;
 static uint8_t color = 0x0F;
@@ -22,7 +24,12 @@ static void scroll() {
 }
 
 namespace vga {
+    size_t cursor_row() { return row; }
+    size_t cursor_col() { return col; }
     void update_cursor() {
+        if (desktop::active()) { desktop::invalidate(); return; }
+        volatile uint16_t* text_memory = (volatile uint16_t*)0xb8000;
+        for (size_t i=0; i<VGA_WIDTH*VGA_HEIGHT; ++i) text_memory[i]=VGA_MEM[i];
         uint16_t pos = row * VGA_WIDTH + col;
         outb(0x3D4, 0x0F);
         outb(0x3D5, (uint8_t)(pos & 0xFF));
