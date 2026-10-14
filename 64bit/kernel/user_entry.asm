@@ -1,16 +1,11 @@
 bits 64
 section .bss
-align 16
-saved_kernel_rsp: resq 1
-saved_kernel_cr3: resq 1
+alignb 16
 saved_user_rsp: resq 1
-align 16
-global syscall_stack_top
-syscall_stack: resb 32768
-syscall_stack_top:
+alignb 16
 section .text
 global user_enter, user_leave, syscall_entry
-extern syscall_dispatch
+extern syscall_dispatch, user_context, user_syscall_top
 user_enter:
     push rbp
     push rbx
@@ -20,9 +15,10 @@ user_enter:
     push r15
     pushfq
     cli
-    mov [rel saved_kernel_rsp], rsp
+    mov r8,[rel user_context]
+    mov [r8],rsp
     mov rax, cr3
-    mov [rel saved_kernel_cr3], rax
+    mov [r8+8],rax
     mov cr3, rdx
     push qword 0x1b
     push rsi
@@ -32,9 +28,10 @@ user_enter:
     iretq
 user_leave:
     cli
-    mov rax, [rel saved_kernel_cr3]
+    mov r8,[rel user_context]
+    mov rax,[r8+8]
     mov cr3, rax
-    mov rsp, [rel saved_kernel_rsp]
+    mov rsp,[r8]
     mov rax, rdi
     popfq
     pop r15
@@ -46,7 +43,7 @@ user_leave:
     ret
 syscall_entry:
     mov [rel saved_user_rsp], rsp
-    lea rsp, [rel syscall_stack_top]
+    mov rsp,[rel user_syscall_top]
     push qword 0x1b
     push qword [rel saved_user_rsp]
     and r11, 0x8d5

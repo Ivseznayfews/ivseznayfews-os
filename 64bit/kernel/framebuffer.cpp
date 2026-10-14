@@ -5,6 +5,7 @@
 static volatile uint32_t* front;
 static uint32_t* back;
 static int w, h, stride;
+static int clip_l,clip_t,clip_r,clip_b;
 static uint8_t red, green, blue;
 static int left, top, right, bottom;
 static int pointer_x = -20, pointer_y = -20;
@@ -49,18 +50,23 @@ namespace framebuffer {
         stride = info->framebuffer_pitch / 4;
         red = info->red_position; green = info->green_position; blue = info->blue_position;
         left = top = 0; right = w; bottom = h;
+        reset_clip();
         return true;
     }
     bool active() { return front != nullptr; }
     int width() { return w; }
     int height() { return h; }
+    void reset_clip(){clip_l=clip_t=0;clip_r=w;clip_b=h;}
+    void clip(int x,int y,int width,int height){
+        clip_l=x<0?0:x;clip_t=y<0?0:y;clip_r=x+width>w?w:x+width;clip_b=y+height>h?h:y+height;
+    }
     void rect(int x, int y, int width, int height, uint32_t rgb) {
         if (!front || width <= 0 || height <= 0) return;
         int x2 = x + width, y2 = y + height;
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (x2 > w) x2 = w;
-        if (y2 > h) y2 = h;
+        if (x < clip_l) x = clip_l;
+        if (y < clip_t) y = clip_t;
+        if (x2 > clip_r) x2 = clip_r;
+        if (y2 > clip_b) y2 = clip_b;
         if (x >= x2 || y >= y2) return;
         uint32_t pixel = color(rgb);
         for (int yy = y; yy < y2; ++yy)

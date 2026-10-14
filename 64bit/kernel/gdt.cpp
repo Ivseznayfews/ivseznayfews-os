@@ -36,6 +36,7 @@ static void set_entry(int i, uint32_t base, uint32_t limit, uint8_t access, uint
 extern "C" void gdt_flush(uint64_t);
 
 namespace gdt {
+    void stack(uint64_t top){tss.rsp0=top?top:(uint64_t)(interrupt_stack+sizeof(interrupt_stack));}
     void init() {
         g_gdtp.limit = sizeof(g_gdt) - 1;
         g_gdtp.base  = (uint64_t)&g_gdt;

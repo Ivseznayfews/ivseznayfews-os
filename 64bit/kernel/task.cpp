@@ -1,8 +1,9 @@
 #include "task.h"
 #include "vga.h"
 #include "critical.h"
+#include "user.h"
 
-#define MAX_TASKS  8
+#define MAX_TASKS  12
 #define STACK_SIZE 16384
 
 struct Task {
@@ -11,6 +12,7 @@ struct Task {
     void   (*entry)();
     int      id;
     const char* name;
+    bool used;
 };
 
 // 静态分配任务栈，避免堆的复杂性
@@ -25,8 +27,8 @@ static volatile int g_sched_lock = 0;
 
 static void task_entry() {
     g_tasks[g_current].entry();
-    // A returning kernel task stays idle rather than returning into garbage.
-    while (1) asm volatile("hlt");
+    // Finished task slots can be reused after switching away.
+    task::finish();
 }
 
 static void setup_stack(Task* t) {
@@ -60,9 +62,14 @@ namespace task {
     }
 
     int create(void (*entry)(), const char* name) {
-        if (!entry || g_multitasking || g_task_count >= MAX_TASKS) return -1;
-        int id = g_task_count++;
+        InterruptGuard guard;
+        if (!entry) return -1;
+        int id=0;
+        while(id<MAX_TASKS && g_tasks[id].used)++id;
+        if(id==MAX_TASKS)return -1;
+        if(id>=g_task_count)g_task_count=id+1;
         Task* t = &g_tasks[id];
+        t->used = true;
         t->entry = entry;
         t->id    = id;
         t->name  = name ? name : "task";
@@ -79,6 +86,11 @@ namespace task {
         task_start(g_tasks[0].rsp);
     }
 
+    int current(){return g_current;}
+    [[noreturn]] void finish(){
+        asm volatile("cli":::"memory");g_tasks[g_current].used=false;
+        while(1)asm volatile("sti;hlt");
+    }
     void lock()   { g_sched_lock++; }
     void unlock() { if (g_sched_lock > 0) g_sched_lock--; }
 
@@ -88,10 +100,12 @@ namespace task {
         int current, count;
         uint64_t switches;
         { InterruptGuard guard; current = g_current; count = g_task_count; switches = g_switch_count; }
-        vga::print("Tasks: "); vga::print_dec(count);
+        unsigned live=0;for(int i=0;i<count;++i)if(g_tasks[i].used)++live;
+        vga::print("Tasks: "); vga::print_dec(live);
         vga::print(", switches="); vga::print_dec(switches);
         vga::putchar('\n');
         for (int i = 0; i < count; ++i) {
+            if(!g_tasks[i].used)continue;
             vga::print("  "); vga::print_dec(i); vga::print("  ");
             vga::print(g_tasks[i].name);
             vga::print(i == current ? "  running\n" : "  ready\n");
@@ -113,7 +127,11 @@ extern "C" uint64_t task_switch_from_irq(uint64_t current_rsp) {
         g_tasks[g_current].rsp = current_rsp;
     }
 
-    g_current = (g_current + 1) % g_task_count;
+    for(int checked=0;checked<g_task_count;++checked){
+        g_current=(g_current+1)%g_task_count;
+        if(g_tasks[g_current].used && user::runnable(g_current))break;
+    }
+    user::activate(g_current);
     g_switch_count++;
 
     return g_tasks[g_current].rsp;

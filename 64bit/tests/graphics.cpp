@@ -47,6 +47,18 @@ int main() {
     bool ink=false;
     for(int y=20;y<36;++y) for(int x=20;x<28;++x) ink|=front[y*stride+x]==0xffffff;
     assert(ink);
+    framebuffer::clip(100,100,8,16);
+    framebuffer::rect(80,80,80,80,0xffffff);
+    framebuffer::glyph(100,100,'W',0x00ff00,2);
+    framebuffer::present();
+    assert(front[100*stride+99]==0x563412);
+    assert(front[100*stride+108]==0x563412);
+    assert(front[99*stride+100]==0x563412);
+    assert(front[116*stride+100]==0x563412);
+    assert(front[115*stride+107]==0xffffff || front[115*stride+107]==0x00ff00);
+    framebuffer::reset_clip();
+    framebuffer::rect(108,100,1,1,0xffffff);framebuffer::present();
+    assert(front[100*stride+108]==0xffffff);
     free(allocation);
     assert(munmap(mapping,bytes+8192)==0);
     puts("PASS: framebuffer validation, channel order, pitch, clipping, glyphs and pointer restoration");

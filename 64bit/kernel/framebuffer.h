@@ -6,6 +6,8 @@ namespace framebuffer {
     bool active();
     int width();
     int height();
+    void clip(int x,int y,int width,int height);
+    void reset_clip();
     void rect(int x, int y, int w, int h, uint32_t rgb);
     void text(int x, int y, const char* text, uint32_t rgb, int scale = 1);
     void glyph(int x, int y, char c, uint32_t rgb, int scale = 1);

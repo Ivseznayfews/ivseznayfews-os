@@ -4,9 +4,9 @@ import struct
 from pathlib import Path
 import sys
 root=Path(__file__).resolve().parents[1]
-path=Path(sys.argv[1]) if len(sys.argv)>1 else root/'.vm'/'disk-v2.img'
+path=Path(sys.argv[1]) if len(sys.argv)>1 else root/'.vm'/'disk-v2.1.img'
 files={'README.TXT':b'Ivseznayfews FAT32 test disk. Read through VFS and syscall.\n'}
-for name in ['hello','badptr','probe','spin','badstack']:
+for name in ['hello','badptr','probe','spin','badstack','sleep','worker','writer']:
     files[name.upper()+'.ELF']=(root/'user'/f'{name}.elf').read_bytes()
 sectors=131072; reserved=32; fats=2; fat_size=1009; first_data=reserved+fats*fat_size
 boot=bytearray(512);boot[:3]=b'\xeb\x58\x90';boot[3:11]=b'IVSE OS '
@@ -16,11 +16,11 @@ boot[64]=0x80;boot[66]=0x29;struct.pack_into('<I',boot,67,0x49565345)
 boot[71:82]=b'IVSE DISK  ';boot[82:90]=b'FAT32   ';boot[510:]=b'\x55\xaa'
 fat=bytearray(fat_size*512)
 for index,value in enumerate([0x0ffffff8,0x0fffffff,0x0fffffff]):struct.pack_into('<I',fat,index*4,value)
-root_dir=bytearray(512);chunks=[];cluster=3
+root_dir=bytearray(512);root_dir[:11]=b'IVSE DISK  ';root_dir[11]=0x08;chunks=[];cluster=3
 for index,(name,data) in enumerate(files.items()):
     first=cluster;count=(len(data)+511)//512
     for j in range(count):struct.pack_into('<I',fat,(cluster+j)*4,cluster+j+1 if j+1<count else 0x0fffffff)
-    short,ext=name.split('.');offset=index*32
+    short,ext=name.split('.');offset=(index+1)*32
     root_dir[offset:offset+11]=(short.ljust(8)+ext.ljust(3)).encode()
     root_dir[offset+11]=0x20
     struct.pack_into('<H',root_dir,offset+20,first>>16);struct.pack_into('<H',root_dir,offset+26,first&65535)

@@ -10,6 +10,7 @@
 #include "user.h"
 #include "smp.h"
 #include "net.h"
+#include "desktop.h"
 
 static char line[256];
 static size_t line_len = 0;
@@ -30,6 +31,8 @@ static void clear_line() {
 
 static void cmd_help() {
     vga::print("Commands: net, ping IP, udp/tcp IP PORT TEXT\n");
+    vga::print("  ps / spawn X / kill PID / wait PID / proctest\n");
+    vga::print("  mkdir PATH / write PATH TEXT / fstest\n");
     vga::print("  help       - show this\n");
     vga::print("  clear      - clear screen\n");
     vga::print("  echo X     - print X\n");
@@ -48,7 +51,7 @@ static void cmd_help() {
 }
 
 static void cmd_about() {
-    vga::print("Ivseznayfews v2.0 (64-bit)\n");
+    vga::print("Ivseznayfews v2.1 (64-bit)\n");
     vga::print("An experimental operating system in C++\n");
     vga::print("Boot: GRUB/Multiboot   Arch: x86_64\n");
 }
@@ -83,6 +86,8 @@ static void cmd_memtest() {
                   : "memtest: FAIL (allocation or integrity error)\n");
 }
 
+static unsigned parse_pid(const char* p){unsigned n=0;while(*p>='0'&&*p<='9'){n=n*10+(*p++-'0');if(n>1000000)return 0;}return *p?0:n;}
+static void print_status(int status){if(status<0)vga::putchar('-');vga::print_dec(status<0?-int64_t(status):status);vga::putchar('\n');}
 static void execute() {
     if (line_len == 0) return;
 
@@ -91,7 +96,21 @@ static void execute() {
     else if (str_eq(line, "about")) cmd_about();
     else if (str_eq(line, "mem")) { pmm::print_stats(); heap::stats(); }
     else if (str_eq(line, "tasks")) task::print_stats();
+    else if (line[0]=='e'&&line[1]=='d'&&line[2]=='i'&&line[3]=='t'&&line[4]==' ')desktop::edit(line+5);
+    else if (str_eq(line, "ps")) user::stats();
+    else if (str_eq(line, "proctest")) user::process_test();
+    else if (str_eq(line, "fstest")) vfs::test();
     else if (str_eq(line, "ls")) vfs::list();
+    else if (line[0]=='l'&&line[1]=='s'&&line[2]==' ')vfs::list(line+3);
+    else if (line[0]=='s'&&line[1]=='p'&&line[2]=='a'&&line[3]=='w'&&line[4]=='n'&&line[5]==' '){vga::print("PID: ");print_status(user::spawn(line+6));}
+    else if (line[0]=='k'&&line[1]=='i'&&line[2]=='l'&&line[3]=='l'&&line[4]==' ')vga::print(user::kill(parse_pid(line+5))?"kill: requested\n":"kill: invalid PID\n");
+    else if (line[0]=='w'&&line[1]=='a'&&line[2]=='i'&&line[3]=='t'&&line[4]==' '){vga::print("wait: ");print_status(user::wait(parse_pid(line+5)));}
+    else if (line[0]=='m'&&line[1]=='k'&&line[2]=='d'&&line[3]=='i'&&line[4]=='r'&&line[5]==' ')vga::print(vfs::mkdir(line+6)?"mkdir: OK\n":"mkdir: failed\n");
+    else if (line[0]=='w'&&line[1]=='r'&&line[2]=='i'&&line[3]=='t'&&line[4]=='e'&&line[5]==' '){
+        char* path=line+6;char* value=path;while(*value&&*value!=' ')++value;
+        if(*value){*value++=0;unsigned n=0;while(value[n])++n;vga::print(vfs::write(path,value,n)>=0?"write: saved\n":"write: failed\n");}
+        else vga::print("Usage: write PATH TEXT\n");
+    }
     else if (line[0]=='c' && line[1]=='a' && line[2]=='t' && line[3]==' ') vfs::cat(line+4);
     else if (line[0]=='r' && line[1]=='u' && line[2]=='n' && line[3]==' ') {
         int status=user::run(line+4);
@@ -148,7 +167,7 @@ static void execute() {
 
 namespace shell {
     void init() {
-        vga::print("Ivseznayfews Shell v2.0 (64-bit)\n");
+        vga::print("Ivseznayfews Shell v2.1 (64-bit)\n");
         vga::print("Type 'help' for commands.\n\n");
         print_prompt();
     }

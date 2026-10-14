@@ -7,4 +7,5 @@ namespace desktop {
     void input(char c);
     void render();
     void show_terminal();
+    void edit(const char* path);
 }

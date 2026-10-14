@@ -77,7 +77,7 @@ test: test-host test-graphics ivseznayfews.iso
 
 -include $(OBJS:.o=.d)
 
-USER_PROGRAMS := user/hello.elf user/badptr.elf user/probe.elf user/spin.elf user/badstack.elf
+USER_PROGRAMS := user/hello.elf user/badptr.elf user/probe.elf user/spin.elf user/badstack.elf user/sleep.elf user/worker.elf user/writer.elf
 user/%.o: user/%.asm
 	$(AS) -f elf64 $< -o $@
 user/%.elf: user/%.o user/linker.ld
@@ -85,7 +85,7 @@ user/%.elf: user/%.o user/linker.ld
 .PHONY: user-programs disk
 user-programs: $(USER_PROGRAMS)
 disk: user-programs
-	@test -e .vm/disk-v2.img || python3 tools/make_disk.py .vm/disk-v2.img
+	@test -e .vm/disk-v2.1.img || python3 tools/make_disk.py .vm/disk-v2.1.img
 
 boot/ap.bin: boot/ap.asm
 	$(AS) -f bin $< -o $@

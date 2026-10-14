@@ -46,7 +46,7 @@ static void keyboard_handler(Registers*) {
 
     if (sc & 0x80) return;
 
-    char c = (sc >= 0x3b && sc <= 0x3e) ? char(0x81+sc-0x3b) :
+    char c = (g_ctrl && sc==0x1f) ? char(0x90) : (sc >= 0x3b && sc <= 0x40) ? char(0x81+sc-0x3b) :
              (g_shift ? kbd_upper[sc] : kbd_lower[sc]);
     if (c) {
         uint16_t next = (write_pos + 1) % sizeof(queue);

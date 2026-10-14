@@ -5,6 +5,8 @@ namespace task {
     void init();
     int  create(void (*entry)(), const char* name = "task");
     void start();
+    int current();
+    [[noreturn]] void finish();
     uint64_t switches();
     void print_stats();
 

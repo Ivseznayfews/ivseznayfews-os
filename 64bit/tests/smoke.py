@@ -175,7 +175,8 @@ with tempfile.TemporaryDirectory(prefix='os-smoke-') as directory:
         if os.environ.get('SYSTEM_TEST'):
             for command, expected in [('ls', 'README.TXT'), ('cat readme.txt', 'Read through VFS'),
                                       ('run readme.txt', 'Process exit: -3'), ('run hello.elf', 'Process exit: 0'), ('usertest', 'usertest: PASS'),
-                                      ('smptest', 'smptest: PASS')]:
+                                      ('smptest', 'smptest: PASS'), ('proctest','proctest: PASS'), ('fstest','fstest: PASS'),
+                                      ('run writer.elf','Process exit: 0'), ('cat user.txt','Ring 3 saved this file')]:
                 type_keys([('spc' if c==' ' else 'dot' if c=='.' else c) for c in command] + ['ret'])
                 wait_for(lambda: expected in screen(), timeout=20)
             assert '[USER] isolated fault vector=' in (root / 'serial.log').read_text()
@@ -220,6 +221,45 @@ with tempfile.TemporaryDirectory(prefix='os-smoke-') as directory:
                 time.sleep(0.15)
                 _, _, pixel = screenshot('restored')
                 assert pixel(x+1,211)==(0x17,0x24,0x37), 'Terminal did not restore'
+        if os.environ.get('SYSTEM_TEST') and payload != 'text':
+            def command(text):
+                type_keys([('spc' if c==' ' else 'dot' if c=='.' else 'slash' if c=='/' else 'minus' if c=='-' else c) for c in text] + ['ret'])
+            command('edit gui.txt')
+            wait_for(lambda: '[GUI] view=4' in (root / 'serial.log').read_text())
+            type_keys(list('editor')+['spc']+list('saved')+['ret'])
+            type_keys(['f6'])
+            wait_for(lambda: '[GUI] editor saved' in (root / 'serial.log').read_text())
+            time.sleep(0.15)
+            _, _, pixel = screenshot('editor-saved')
+            assert pixel(width-40,259)==(0x17,0x24,0x37), 'Editor is not on top'
+            # Click the exposed Terminal title: it must rise above Editor.
+            monitor(f'mouse_move {x+20-(width-56)} 0')
+            time.sleep(0.15)
+            monitor('mouse_button 1')
+            time.sleep(0.15)
+            monitor('mouse_button 0')
+            time.sleep(0.15)
+            _, _, pixel = screenshot('focus-raised')
+            assert pixel(width-40,259)==(0x0c,0x15,0x21), 'Covered window incorrectly received the click'
+            type_keys(['f1'])
+            command('cat gui.txt')
+            wait_for(lambda: 'editor saved' in screen())
+            # F5 raises existing editor; typing must not enter the shell.
+            type_keys(['f5','z'])
+            type_keys(['f1'])
+            command('echo focusok')
+            wait_for(lambda: 'focusok' in [screen()[i:i+80].strip() for i in range(0,2000,80)])
+            # Unsaved buffer is retained when another window is raised.
+            type_keys(['f5','ctrl-s'])
+            type_keys(['f1'])
+            command('cat gui.txt')
+            wait_for(lambda: 'z' in [screen()[i:i+80].strip() for i in range(0,2000,80)])
+        if os.environ.get('PERSIST_WRITE'):
+            type_keys(list('write')+['spc']+list('persist')+['dot']+list('txt')+['spc']+list('survives')+['minus']+list('reboot')+['ret'])
+            wait_for(lambda: 'write: saved' in screen())
+        if os.environ.get('PERSIST_READ'):
+            type_keys(list('cat')+['spc']+list('persist')+['dot']+list('txt')+['ret'])
+            wait_for(lambda: 'survives-reboot' in screen())
         if os.environ.get('NETWORK_TEST'):
             for command, expected in [('ping 10.0.2.2', 'ping: reply'),
                                       ('udp 10.0.2.2 19000 hello', 'udp: reply hello'),

@@ -19,16 +19,16 @@ A 64-bit hobby operating system written from scratch in C++ and x86 assembly.
 - **PIT timer** — 100 Hz
 - **Multitasking** — round-robin scheduler, context switch via iretq
 
-## System foundations (v2.0)
+## System foundations (v2.1)
 
-See [SYSTEM-V2.md](SYSTEM-V2.md) for Ring 3/syscall, ATA/VFS/FAT32, E1000 networking,
+See [SYSTEM-V2.1.md](SYSTEM-V2.1.md) for Ring 3/syscall, ATA/VFS/FAT32, E1000 networking,
 SMP worker scheduling, commands, reproducible tests, and explicit limitations.
 
 ## Graphical desktop
 
 The first GRUB entry boots a dark desktop: a sidebar selects Terminal, System,
 Help, and Files; the top cards show actual free memory, uptime, and task switches.
-Click sidebar items with the PS/2 mouse, or use F1/F2/F3/F4. Tab cycles views and
+Click sidebar items with the PS/2 mouse, or use F1/F2/F3/F4/F5; F6 or Ctrl+S saves the editor. Tab cycles views and
 Escape returns to Terminal. Shell input and output survive switching pages.
 The terminal retains all existing commands, including `memtest` and `shutdown`.
 
@@ -43,8 +43,8 @@ Choose the second GRUB entry, **text recovery**, for the original VGA console.
 GRUB's `gfxpayload` must be set after the `multiboot` command because loading
 the Multiboot header sets its own video preference. Supported layouts currently
 use 32-bit RGB. The terminal title bar supports dragging and minimization; F1
-restores it. Files lists the mounted FAT32 root. This is a single active window
-desktop, without overlapping application windows or Unicode input.
+restores it. Files lists the mounted FAT32 root. This is a window compositor with focus, overlapping built-in windows, and a FAT32-backed
+4096-byte editor. Unicode input and user GUI APIs remain future work.
 
 The checked-in ASCII bitmap derives from DejaVu Sans Mono; its license is in
 `licenses/DejaVu.txt`. Regeneration uses `tools/make_font.py` (Pillow + DejaVu),

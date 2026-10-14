@@ -49,7 +49,7 @@ extern "C" void kmain(uint32_t magic, uint32_t mb_info) {
     serial::init();
 
     vga::print("=================================\n");
-    vga::print("    Ivseznayfews 64-bit v2.0\n");
+    vga::print("    Ivseznayfews 64-bit v2.1\n");
     vga::print("=================================\n\n");
 
     if (magic != 0x2BADB002 || !mb_info ||
